@@ -1,0 +1,317 @@
+3. Доработать unit-файл Nginx (nginx.service) для запуска нескольких инстансов
+сервера с разными конфигурационными файлами одновременно
+
+==========================================================
+== запус серверов с разными конфигурациями и их статусы ==
+==========================================================
+
+root@user:/etc/nginx# pwd
+/etc/nginx
+root@user:/etc/nginx# ls
+conf.d        fastcgi_params  koi-win     modules-available  nginx.conf        nginx-second.conf  scgi_params      sites-enabled  uwsgi_params
+fastcgi.conf  koi-utf         mime.types  modules-enabled    nginx-first.conf  proxy_params       sites-available  snippets       win-utf
+root@user:/etc/nginx# ls ngi*
+nginx.conf  nginx-first.conf  nginx-second.conf
+root@user:/etc/nginx# ll ngi*
+-rw-r--r-- 1 root root 1447 мая 30  2023 nginx.conf
+-rw-r--r-- 1 root root 1481 мар 16 18:57 nginx-first.conf
+-rw-r--r-- 1 root root 1496 мар 16 18:57 nginx-second.conf
+root@user:/etc/nginx# systemctl start nginx@second
+root@user:/etc/nginx# systemctl status nginx@second
+● nginx@second.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/etc/systemd/system/nginx@.service; disabled; vendor preset: enabled)
+     Active: active (running) since Wed 2026-03-25 18:34:15 UTC; 7s ago
+       Docs: man:nginx(8)
+    Process: 1415 ExecStartPre=/usr/sbin/nginx -t -c /etc/nginx/nginx-second.conf -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1416 ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx-second.conf -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1417 (nginx)
+      Tasks: 5 (limit: 2215)
+     Memory: 4.7M
+        CPU: 46ms
+     CGroup: /system.slice/system-nginx.slice/nginx@second.service
+             ├─1417 "nginx: master process /usr/sbin/nginx -c /etc/nginx/nginx-second.conf -g daemon on; master_process on;"
+             ├─1418 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             ├─1419 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             ├─1420 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             └─1421 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+
+мар 25 18:34:15 user systemd[1]: Starting A high performance web server and a reverse proxy server...
+мар 25 18:34:15 user systemd[1]: Started A high performance web server and a reverse proxy server.
+root@user:/etc/nginx# systemctl start nginx@first
+root@user:/etc/nginx# systemctl status nginx@first
+● nginx@first.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/etc/systemd/system/nginx@.service; disabled; vendor preset: enabled)
+     Active: active (running) since Wed 2026-03-25 18:34:53 UTC; 14s ago
+       Docs: man:nginx(8)
+    Process: 1430 ExecStartPre=/usr/sbin/nginx -t -c /etc/nginx/nginx-first.conf -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1431 ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx-first.conf -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1432 (nginx)
+      Tasks: 5 (limit: 2215)
+     Memory: 4.7M
+        CPU: 52ms
+     CGroup: /system.slice/system-nginx.slice/nginx@first.service
+             ├─1432 "nginx: master process /usr/sbin/nginx -c /etc/nginx/nginx-first.conf -g daemon on; master_process on;"
+             ├─1433 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             ├─1434 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             ├─1435 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             └─1436 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+
+мар 25 18:34:53 user systemd[1]: Starting A high performance web server and a reverse proxy server...
+мар 25 18:34:53 user systemd[1]: Started A high performance web server and a reverse proxy server.
+
+=====================
+== проверка портов ==
+=====================
+
+root@user:/etc/nginx# ss -ntlp
+State                Recv-Q               Send-Q                             Local Address:Port                             Peer Address:Port               Process
+LISTEN               0                    128                                      0.0.0.0:22                                    0.0.0.0:*                   users:(("sshd",pid=755,fd=3))
+LISTEN               0                    4096                               127.0.0.53%lo:53                                    0.0.0.0:*                   users:(("systemd-resolve",pid=665,fd=14))
+LISTEN               0                    511                                      0.0.0.0:80                                    0.0.0.0:*                   users:(("nginx",pid=796,fd=6),("nginx",pid=795,fd=6),("nginx",pid=794,fd=6),("nginx",pid=793,fd=6),("nginx",pid=792,fd=6))
+LISTEN               0                    511                                      0.0.0.0:9002                                  0.0.0.0:*                   users:(("nginx",pid=1421,fd=6),("nginx",pid=1420,fd=6),("nginx",pid=1419,fd=6),("nginx",pid=1418,fd=6),("nginx",pid=1417,fd=6))
+LISTEN               0                    511                                      0.0.0.0:9001                                  0.0.0.0:*                   users:(("nginx",pid=1436,fd=6),("nginx",pid=1435,fd=6),("nginx",pid=1434,fd=6),("nginx",pid=1433,fd=6),("nginx",pid=1432,fd=6))
+LISTEN               0                    128                                         [::]:22                                       [::]:*                   users:(("sshd",pid=755,fd=4))
+LISTEN               0                    511                                         [::]:80                                       [::]:*                   users:(("nginx",pid=796,fd=7),("nginx",pid=795,fd=7),("nginx",pid=794,fd=7),("nginx",pid=793,fd=7),("nginx",pid=792,fd=7))
+
+=====================================================
+== содержимое доработанных конфигурационных файлов ==
+=====================================================
+
+root@user:/etc/nginx# ll nginx*
+-rw-r--r-- 1 root root 1447 мая 30  2023 nginx.conf
+-rw-r--r-- 1 root root 1481 мар 16 18:57 nginx-first.conf
+-rw-r--r-- 1 root root 1496 мар 16 18:57 nginx-second.conf
+root@user:/etc/nginx# cat nginx-first.conf
+user www-data;
+worker_processes auto;
+pid /run/nginx-first.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+        worker_connections 768;
+        # multi_accept on;
+}
+
+http {
+
+        ##
+        # Basic Settings
+        ##
+
+        sendfile on;
+        tcp_nopush on;
+        types_hash_max_size 2048;
+        # server_tokens off;
+
+        # server_names_hash_bucket_size 64;
+        # server_name_in_redirect off;
+
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        ##
+        # SSL Settings
+        ##
+
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+        ssl_prefer_server_ciphers on;
+
+        ##
+        # Logging Settings
+        ##
+
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+        ##
+        # Gzip Settings
+        ##
+
+        gzip on;
+
+        # gzip_vary on;
+        # gzip_proxied any;
+        # gzip_comp_level 6;
+        # gzip_buffers 16 8k;
+        # gzip_http_version 1.1;
+        # gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+        ##
+        # Virtual Host Configs
+        ##
+
+        include /etc/nginx/conf.d/*.conf;
+        #include /etc/nginx/sites-enabled/*;
+        server{
+                listen 9001;
+        }
+}
+
+
+#mail {
+#       # See sample authentication script at:
+#       # http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript
+#
+#       # auth_http localhost/auth.php;
+#       # pop3_capabilities "TOP" "USER";
+#       # imap_capabilities "IMAP4rev1" "UIDPLUS";
+#
+#       server {
+#               listen     localhost:110;
+#               protocol   pop3;
+#               proxy      on;
+#       }
+#
+#       server {
+#               listen     localhost:143;
+#               protocol   imap;
+#               proxy      on;
+#       }
+#}
+root@user:/etc/nginx# cat nginx-second.conf
+user www-data;
+worker_processes auto;
+pid /run/nginx-second.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+        worker_connections 768;
+        # multi_accept on;
+}
+
+http {
+
+        ##
+        # Basic Settings
+        ##
+
+        sendfile on;
+        tcp_nopush on;
+        types_hash_max_size 2048;
+        # server_tokens off;
+
+        # server_names_hash_bucket_size 64;
+        # server_name_in_redirect off;
+
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        ##
+        # SSL Settings
+        ##
+
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+        ssl_prefer_server_ciphers on;
+
+        ##
+        # Logging Settings
+        ##
+
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+        ##
+        # Gzip Settings
+        ##
+
+        gzip on;
+
+        # gzip_vary on;
+        # gzip_proxied any;
+        # gzip_comp_level 6;
+        # gzip_buffers 16 8k;
+        # gzip_http_version 1.1;
+        # gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+        ##
+        # Virtual Host Configs
+        ##
+
+        include /etc/nginx/conf.d/*.conf;
+        #include /etc/nginx/sites-enabled/*;
+        server{
+                listen 9002;
+        }
+}
+
+
+#mail {
+#       # See sample authentication script at:
+#       # http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript
+#
+#       # auth_http localhost/auth.php;
+#       # pop3_capabilities "TOP" "USER";
+#       # imap_capabilities "IMAP4rev1" "UIDPLUS";
+#
+#       server {
+#               listen     localhost:110;
+#               protocol   pop3;
+#               proxy      on;
+#       }
+#
+#       server {
+#               listen     localhost:143;
+#               protocol   imap;
+#               proxy      on;
+#       }
+#}
+
+======================================
+== юнит файл для работы с шаблонами ==
+======================================
+
+root@user:/etc/nginx# cat /etc/systemd/system/nginx@.service
+# Stop dance for nginx
+# =======================
+#
+# ExecStop sends SIGSTOP (graceful stop) to the nginx process.
+# If, after 5s (--retry QUIT/5) nginx is still running, systemd
+# takes control
+# and sends SIGTERM (fast shutdown) to the main process.
+# After another 5s (TimeoutStopSec=5), and if nginx is alive,
+# systemd sends
+# SIGKILL to all the remaining processes in the process group
+# (KillMode=mixed).
+#
+# nginx signals reference doc:
+# http://nginx.org/en/docs/control.html
+#
+[Unit]
+Description=A high performance web server and a reverse proxy server
+Documentation=man:nginx(8)
+After=network.target nss-lookup.target
+[Service]
+Type=forking
+PIDFile=/run/nginx-%I.pid
+ExecStartPre=/usr/sbin/nginx -t -c /etc/nginx/nginx-%I.conf -q -g 'daemon on; master_process on;'
+ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx-%I.conf -g 'daemon on; master_process on;'
+ExecReload=/usr/sbin/nginx -c /etc/nginx/nginx-%I.conf -g 'daemon on; master_process on;' -s reload
+ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /run/nginx-%I.pid
+TimeoutStopSec=5
+KillMode=mixed
+[Install]
+WantedBy=multi-user.target
+
+========================
+== проверка процессов ==
+========================
+root@user:/etc/nginx# ps afx | grep nginx
+   1517 pts/3    S+     0:00                          \_ grep --color=auto nginx
+    792 ?        Ss     0:00 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+    793 ?        S      0:00  \_ nginx: worker process
+    794 ?        S      0:00  \_ nginx: worker process
+    795 ?        S      0:00  \_ nginx: worker process
+    796 ?        S      0:00  \_ nginx: worker process
+   1417 ?        Ss     0:00 nginx: master process /usr/sbin/nginx -c /etc/nginx/nginx-second.conf -g daemon on; master_process on;
+   1418 ?        S      0:00  \_ nginx: worker process
+   1419 ?        S      0:00  \_ nginx: worker process
+   1420 ?        S      0:00  \_ nginx: worker process
+   1421 ?        S      0:00  \_ nginx: worker process
+   1432 ?        Ss     0:00 nginx: master process /usr/sbin/nginx -c /etc/nginx/nginx-first.conf -g daemon on; master_process on;
+   1433 ?        S      0:00  \_ nginx: worker process
+   1434 ?        S      0:00  \_ nginx: worker process
+   1435 ?        S      0:00  \_ nginx: worker process
+   1436 ?        S      0:00  \_ nginx: worker process
+root@user:/etc/nginx#
+
+
