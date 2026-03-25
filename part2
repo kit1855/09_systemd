@@ -1,0 +1,261 @@
+2. Установить spawn-fcgi и создать unit-файл (spawn-fcgi.sevice) с помощью
+переделки init-скрипта (https://gist.github.com/cea2k/1318020).
+
+============
+== конфиг ==
+============
+
+t@host ~#] cat > /etc/spawn-fcgi/fcgi.conf
+# You must set some working options before the "spawn-fcgi" service
+will work.
+# If SOCKET points to a file, then this file is cleaned up by the
+init script.
+#
+# See spawn-fcgi(1) for all possible options.
+#
+# Example :
+SOCKET=/var/run/php-fcgi.sock
+OPTIONS="-u www-data -g www-data -s $SOCKET -S -M 0600 -C 32 -F 1 --
+/usr/bin/php-cgi"
+
+==========================================
+== юнит-файл сервиса spawn-fcgi.service ==
+==========================================
+
+[Unit]
+Description=Spawn-fcgi startup service by Otus
+After=network.target
+[Service]
+Type=simple
+PIDFile=/var/run/spawn-fcgi.pid
+EnvironmentFile=/etc/spawn-fcgi/fcgi.conf
+ExecStart=/usr/bin/spawn-fcgi -n $OPTIONS
+KillMode=process
+[Install]
+WantedBy=multi-user.target
+
+================================
+== проверка работоспособности ==
+================================
+
+Убеждаемся, что все успешно работает:
+[root@host ~#] systemctl start spawn-fcgi
+[root@host ~#] systemctl status spawn-fcgi
+
+===========================================
+== этот скрипт будет запускать сервис    ==
+== https://gist.github.com/cea2k/1318020 ==
+===========================================
+
+#!/bin/sh
+#
+# php-cgi - php-fastcgi swaping via  spawn-fcgi
+#
+# chkconfig:   - 85 15
+# description:  Run php-cgi as app server
+# processname: php-cgi
+# config:      /etc/sysconfig/phpfastcgi (defaults RH style)
+# pidfile:     /var/run/php_cgi.pid
+# Note: See how to use this script :
+# http://www.cyberciti.biz/faq/rhel-fedora-install-configure-nginx-php5/
+# Source function library.
+. /etc/rc.d/init.d/functions
+ 
+# Source networking configuration.
+. /etc/sysconfig/network
+ 
+# Check that networking is up.
+[ "$NETWORKING" = "no" ] && exit 0
+ 
+spawnfcgi="/usr/bin/spawn-fcgi"
+php_cgi="/usr/bin/php-cgi"
+prog=$(basename $php_cgi)
+server_ip=127.0.0.1
+server_port=9000
+server_user=nginx
+server_group=nginx
+server_childs=5
+pidfile="/var/run/php_cgi.pid"
+ 
+# do not edit, put changes in /etc/sysconfig/phpfastcgi
+[ -f /etc/sysconfig/phpfastcgi ] && . /etc/sysconfig/phpfastcgi
+ 
+start() {
+    [ -x $php_cgi ] || exit 1
+    [ -x $spawnfcgi ] || exit 2
+    echo -n $"Starting $prog: "
+    daemon $spawnfcgi -a ${server_ip} -p ${server_port} -u ${server_user} -g ${server_group} -P ${pidfile} -C ${server_childs} -f ${php_cgi}
+    retval=$?
+    echo
+    return $retval
+}
+ 
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc -p ${pidfile} $prog -QUIT
+    retval=$?
+    echo
+    [ -f ${pidfile} ] && /bin/rm -f ${pidfile}
+    return $retval
+}
+ 
+restart(){
+	stop
+	sleep 2
+	start
+}
+ 
+rh_status(){
+	status -p ${pidfile} $prog
+}
+ 
+case "$1" in
+    start)
+        start;;
+    stop)
+        stop;;
+    restart)
+        restart;;
+    status)
+        rh_status;;
+    *)
+        echo $"Usage: $0 {start|stop|restart|status}"
+        exit 3
+esac
+
+
+=========================
+== переделал юнит файл ==
+=========================
+
+[Unit]
+Description=Run php-cgi as app server
+After=network.target
+[Service]
+Type=simple
+PIDFile=/var/run/php_cgi.pid
+EnvironmentFile=/etc/spawn-fcgi/fcgi.conf
+ExecStart=/usr/bin/spawn-fcgi -n $OPTIONS
+KillMode=process
+[Install]
+WantedBy=multi-user.target
+
+============
+== запуск ==
+============
+
+root@user:~# cat /etc/systemd/system/spawn-fcgi.service
+[Unit]
+Description=Run php-cgi as app server
+After=network.target
+[Service]
+Type=simple
+PIDFile=/var/run/php_cgi.pid
+EnvironmentFile=/etc/spawn-fcgi/fcgi.conf
+ExecStart=/usr/bin/spawn-fcgi -n $OPTIONS
+KillMode=process
+[Install]
+WantedBy=multi-user.target
+root@user:~#
+root@user:~#
+root@user:~#
+root@user:~# systemctl daemon-reload
+root@user:~# systemctl start spawn-fcgi.service
+root@user:~# systemctl status spawn-fcgi.service
+● spawn-fcgi.service - Run php-cgi as app server
+     Loaded: loaded (/etc/systemd/system/spawn-fcgi.service; disabled; vend>
+     Active: active (running) since Tue 2026-03-24 19:19:00 UTC; 8s ago
+   Main PID: 1658 (php-cgi)
+      Tasks: 33 (limit: 2215)
+     Memory: 18.9M
+        CPU: 295ms
+     CGroup: /system.slice/spawn-fcgi.service
+             ├─1658 /usr/bin/php-cgi
+             ├─1659 /usr/bin/php-cgi
+             ├─1660 /usr/bin/php-cgi
+             ├─1661 /usr/bin/php-cgi
+             ├─1662 /usr/bin/php-cgi
+             ├─1663 /usr/bin/php-cgi
+             ├─1664 /usr/bin/php-cgi
+             ├─1665 /usr/bin/php-cgi
+             ├─1666 /usr/bin/php-cgi
+             ├─1667 /usr/bin/php-cgi
+             ├─1668 /usr/bin/php-cgi
+             ├─1669 /usr/bin/php-cgi
+             ├─1670 /usr/bin/php-cgi
+             ├─1671 /usr/bin/php-cgi
+             ├─1672 /usr/bin/php-cgi
+             ├─1673 /usr/bin/php-cgi
+             ├─1674 /usr/bin/php-cgi
+             ├─1675 /usr/bin/php-cgi
+             ├─1676 /usr/bin/php-cgi
+             ├─1677 /usr/bin/php-cgi
+             ├─1678 /usr/bin/php-cgi
+             ├─1679 /usr/bin/php-cgi
+             ├─1680 /usr/bin/php-cgi
+             ├─1681 /usr/bin/php-cgi
+             ├─1682 /usr/bin/php-cgi
+             ├─1683 /usr/bin/php-cgi
+             ├─1684 /usr/bin/php-cgi
+             ├─1685 /usr/bin/php-cgi
+             ├─1686 /usr/bin/php-cgi
+             ├─1687 /usr/bin/php-cgi
+             ├─1688 /usr/bin/php-cgi
+             ├─1689 /usr/bin/php-cgi
+ ESCOC
+app server
+em/spawn-fcgi.service; disabled; vendor preset: enabled)
+e 2026-03-24 19:19:00 UTC; 8s ago
+
+
+
+
+service
+
+
+
+ ESCOD
+● spawn-fcgi.service - Run php-cgi as app server
+     Loaded: loaded (/etc/systemd/system/spawn-fcgi.service; disabled; vend>
+     Active: active (running) since Tue 2026-03-24 19:19:00 UTC; 8s ago
+   Main PID: 1658 (php-cgi)
+      Tasks: 33 (limit: 2215)
+     Memory: 18.9M
+        CPU: 295ms
+     CGroup: /system.slice/spawn-fcgi.service
+             ├─1658 /usr/bin/php-cgi
+             ├─1659 /usr/bin/php-cgi
+             ├─1660 /usr/bin/php-cgi
+             ├─1661 /usr/bin/php-cgi
+             ├─1662 /usr/bin/php-cgi
+             ├─1663 /usr/bin/php-cgi
+             ├─1664 /usr/bin/php-cgi
+             ├─1665 /usr/bin/php-cgi
+             ├─1666 /usr/bin/php-cgi
+             ├─1667 /usr/bin/php-cgi
+             ├─1668 /usr/bin/php-cgi
+             ├─1669 /usr/bin/php-cgi
+             ├─1670 /usr/bin/php-cgi
+             ├─1671 /usr/bin/php-cgi
+             ├─1672 /usr/bin/php-cgi
+             ├─1673 /usr/bin/php-cgi
+             ├─1674 /usr/bin/php-cgi
+             ├─1675 /usr/bin/php-cgi
+             ├─1676 /usr/bin/php-cgi
+             ├─1677 /usr/bin/php-cgi
+             ├─1678 /usr/bin/php-cgi
+             ├─1679 /usr/bin/php-cgi
+             ├─1680 /usr/bin/php-cgi
+             ├─1681 /usr/bin/php-cgi
+             ├─1682 /usr/bin/php-cgi
+             ├─1683 /usr/bin/php-cgi
+             ├─1684 /usr/bin/php-cgi
+             ├─1685 /usr/bin/php-cgi
+             ├─1686 /usr/bin/php-cgi
+             ├─1687 /usr/bin/php-cgi
+             ├─1688 /usr/bin/php-cgi
+             ├─1689 /usr/bin/php-cgi
+             └─1690 /usr/bin/php-cgi
+
+мар 24 19:19:00 user systemd[1]: Started Run php-cgi as app server.
+root@user:~# 
