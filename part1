@@ -1,0 +1,58 @@
+root@user:~# vim /etc/default/watchlog
+root@user:~# cat /etc/default/watchlog
+# Configuration file for my watchlog service
+# Place it to /etc/default
+# File and word in that file that we will be monit
+WORD="ALERT"
+LOG=/var/log/watchlog.log
+root@user:~# vim var/log/watchlog.log
+root@user:~# vim /var/log/watchlog.log
+root@user:~# cat /var/log/watchlog.log
+first
+second
+therd
+ALERT
+root@user:~# vim /opt/watchlog.sh
+root@user:~# cat /opt/watchlog.sh
+#!/bin/bash
+WORD=$1
+LOG=$2
+DATE=`date`
+if grep $WORD $LOG &> /dev/null; then
+                logger "$DATE: I found word, Master!"
+        else
+                exit 0
+fi
+root@user:~# chmod +x /opt/watchlog.sh
+root@user:~# ll /opt/watchlog.sh
+-rwxr-xr-x 1 root root 135 мар  7 17:33 /opt/watchlog.sh*
+root@user:~# vim /etc/systemd/system/watchlog.service
+root@user:~# cat /etc/systemd/system/watchlog.service
+[Unit]
+Description=My watchlog service
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/default/watchlog
+ExecStart=/opt/watchlog.sh $WORD $LOG
+root@user:~# vim /etc/systemd/system/watchlog.timer
+root@user:~# cat /etc/systemd/system/watchlog.timer
+[Unit]
+Description=Run watchlog script every 30 second
+[Timer]
+# Run every 30 second
+OnUnitActiveSec=30
+Unit=watchlog.service
+[Install]
+WantedBy=multi-user.target
+root@user:~# systemctl start watchlog.timer
+root@user:~# tail -n 1000 /var/log/syslog | grep word
+Mar  7 17:10:26 user systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+Mar  7 17:10:26 user systemd[1]: Condition check resulted in Forward Password Requests to Plymouth Directory Watch being skipped.
+Mar  7 17:10:26 user kernel: [   14.134183] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+root@user:~# tail -n 1000 /var/log/syslog | grep $word
+Usage: grep [OPTION]... PATTERNS [FILE]...
+Try 'grep --help' for more information.
+root@user:~# tail -n 1000 /var/log/watchlog.log | grep word
+root@user:~# tail -n 1000 /var/log/watchlog.log | grep ALERT
+ALERT
+root@user:~# 
